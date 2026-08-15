@@ -20,14 +20,12 @@ def index():
 
       try:
         with DDGS() as ddgs:
-          # Վերցնում ենք մի քանի տարբեր հղումներ, որոնցից մեկը հավանաբար չի արգելափակի
           results = list(ddgs.text(query, region="am-hy", max_results=8))
           if not results:
             results = list(ddgs.text(query, max_results=8))
 
           for r in results:
             link = r.get("href", "")
-            # Բացառում ենք Վիքիպեդիան և սոցկայքերը
             if (
                 link
                 and "wikipedia.org" not in link
@@ -48,7 +46,6 @@ def index():
           "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
       }
 
-      # Փորձում ենք հերթով անցնել գտնված հղումների վրայով, մինչև մեկը հաջողվի
       for u in urls_to_try:
         try:
           response = requests.get(u, headers=headers, timeout=5)
@@ -65,18 +62,17 @@ def index():
 
             if text_list:
               source_url = u
-              meaning = "\n\n".join(text_list[:3])
+              # Վերցնում ենք միայն առաջին պարբերությունը, որպիսզի ուրիշ անուններ չխառնվեն
+              meaning = text_list[0]
               break
         except Exception:
           continue
 
-      # Եթե ոչ մի կայքից չհաջողվեց ավտոմատ կարդալ տեքստը, բայց հղում գտնվել է
       if not meaning and urls_to_try:
         source_url = urls_to_try[0]
         meaning = (
-            f"Ավտոմատ կերպով տեքստը հնարավոր չեղավ կարդալ (կայքի"
-            f" պաշտպանության պատճառով): Խնդրում ենք սեղմել ստորև բերված հղումը՝"
-            f" անմիջապես կայքում կարդալու համար:"
+            "Ավտոմատ կերպով տեքստը հնարավոր չեղավ կարդալ: Խնդրում ենք սեղմել"
+            " ստորև բերված հղումը:"
         )
       elif not meaning:
         meaning = f"Ցավոք, «{name}» անվան վերաբերյալ տեղեկություն չգտնվեց:"
