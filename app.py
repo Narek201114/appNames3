@@ -15,25 +15,35 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
+      # Փորձում ենք առաջին հարցումը
       query = f"{name} անվան նշանակությունը բացատրություն"
       url = None
+
       try:
         with DDGS() as ddgs:
           results = list(ddgs.text(query, region="am-hy", max_results=5))
+
+          # Եթե հայերեն տարածաշրջանով չգտավ, փորձենք առանց տարածաշրջանի սահմանափակման
           if not results:
             results = list(ddgs.text(query, max_results=5))
 
+          # Եթե էլի չգտավ, փորձենք ավելի պարզ հարցում (միայն անունը)
+          if not results:
+            results = list(ddgs.text(name, max_results=5))
+
           for r in results:
-            link = r["href"]
+            link = r.get("href", "")
             if "wikipedia.org" not in link:
               url = link
               break
           if not url and results:
-            url = results[0]["href"]
+            url = results[0].get("href")
+
           source_url = url
       except Exception:
         pass
 
+      # Եթե հղում գտնվեց, փորձում ենք կարդալ
       if source_url:
         try:
           headers = {
@@ -56,8 +66,16 @@ def index():
 
           if text_list:
             meaning = "\n\n".join(text_list[:3])
+          else:
+            meaning = (
+                "Ցավոք, գտնված էջից հնարավոր չեղավ տեքստ առանձնացնել:"
+            )
         except Exception:
           meaning = "Տվյալները կարդալիս սխալ առաջացավ:"
+      else:
+        meaning = (
+            f"Ցավոք, «{name}» անվան վերաբերյալ տեղեկություն կամ կայքէջ չգտնվեց:"
+        )
 
   return render_template(
       "index.html", meaning=meaning, name=name, source_url=source_url
@@ -66,4 +84,3 @@ def index():
 
 if __name__ == "__main__":
   app.run(debug=True)
-  
