@@ -54,15 +54,21 @@ def index():
             soup = BeautifulSoup(response.text, "html.parser")
 
             paragraphs = soup.find_all("p")
-            text_list = [
-                p.get_text().strip()
-                for p in paragraphs
-                if len(p.get_text().strip()) > 30
-            ]
+            text_list = []
+            for p in paragraphs:
+              txt = p.get_text().strip()
+              # Ֆիլտրում ենք գովազդները, հեռախոսահամարները և անպիտան կարճ տողերը
+              if (
+                  len(txt) > 30
+                  and "1-888" not in txt
+                  and "Chair" not in txt
+                  and "Setup" not in txt
+              ):
+                text_list.append(txt)
 
             if text_list:
               source_url = u
-              # Վերցնում ենք միայն առաջին պարբերությունը, որպիսզի ուրիշ անուններ չխառնվեն
+              # Վերցնում ենք ճիշտ առաջին իմաստալից պարբերությունը
               meaning = text_list[0]
               break
         except Exception:
