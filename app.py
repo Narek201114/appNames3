@@ -6,6 +6,12 @@ import requests
 app = Flask(__name__)
 
 
+# Ֆունկցիա, որը ստուգում է, թե արդյոք տեքստում կան հայերեն տառեր
+def is_armenian(text):
+  armenian_letters = set("աբգդեզէըթժիլխծկհձղճմյնշոչպջռսվտրցւփքօֆև")
+  return any(char in armenian_letters for char in text.lower())
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
   meaning = None
@@ -15,14 +21,15 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
+      # Հարցումը ուղղորդում ենք հայկական տիրույթ
       query = f"{name} անվան նշանակությունը բացատրություն"
       urls_to_try = []
 
       try:
         with DDGS() as ddgs:
-          results = list(ddgs.text(query, region="am-hy", max_results=8))
+          results = list(ddgs.text(query, region="am-hy", max_results=10))
           if not results:
-            results = list(ddgs.text(query, max_results=8))
+            results = list(ddgs.text(query, max_results=10))
 
           for r in results:
             link = r.get("href", "")
@@ -51,16 +58,16 @@ def index():
           response = requests.get(u, headers=headers, timeout=5)
           if response.status_code == 200:
             response.encoding = response.apparent_encoding
-            # Ուղղված է html.parser սխալը
             soup = BeautifulSoup(response.text, "html.parser")
 
             paragraphs = soup.find_all("p")
             text_list = []
             for p in paragraphs:
               txt = p.get_text().strip()
-              # Ավելի հավասարակշռված ֆիլտր
+              # Ֆիլտրում ենք ըստ երկարության, գովազդների և ՍՏՈՒԳՈՒՄ ԵՆՔ, ՈՐ ԼԻՆԻ ՀԱՅԵՐԵՆ
               if (
-                  len(txt) > 20
+                  len(txt) > 30
+                  and is_armenian(txt)
                   and "1-888" not in txt
                   and "Chair" not in txt
                   and "Setup" not in txt
@@ -71,7 +78,6 @@ def index():
 
             if text_list:
               source_url = u
-              # Վերցնում ենք առաջին 2 լավագույն պարբերությունները
               meaning = "\n\n".join(text_list[:2])
               break
         except Exception:
@@ -93,3 +99,4 @@ def index():
 
 if __name__ == "__main__":
   app.run(debug=True)
+  
