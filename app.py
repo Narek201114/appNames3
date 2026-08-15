@@ -16,48 +16,70 @@ def index():
     name = request.form.get("name", "").strip()
     if name:
       query = f"{name} անվան նշանակությունը բացատրություն"
-      url = None
+      urls_to_try = []
+
       try:
         with DDGS() as ddgs:
-          results = list(ddgs.text(query, region="am-hy", max_results=5))
+          # Վերցնում ենք մի քանի տարբեր հղումներ, որոնցից մեկը հավանաբար չի արգելափակի
+          results = list(ddgs.text(query, region="am-hy", max_results=8))
           if not results:
-            results = list(ddgs.text(query, max_results=5))
+            results = list(ddgs.text(query, max_results=8))
 
           for r in results:
-            link = r["href"]
-            if "wikipedia.org" not in link:
-              url = link
-              break
-          if not url and results:
-            url = results[0]["href"]
-          source_url = url
+            link = r.get("href", "")
+            # Բացառում ենք Վիքիպեդիան և սոցկայքերը
+            if (
+                link
+                and "wikipedia.org" not in link
+                and "facebook.com" not in link
+            ):
+              urls_to_try.append(link)
       except Exception:
         pass
 
-      if source_url:
+      headers = {
+          "User-Agent": (
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+              " (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+          ),
+          "Accept": (
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+          ),
+          "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
+      }
+
+      # Փորձում ենք հերթով անցնել գտնված հղումների վրայով, մինչև մեկը հաջողվի
+      for u in urls_to_try:
         try:
-          headers = {
-              "User-Agent": (
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                  " (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-              ),
-              "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
-          }
-          response = requests.get(source_url, headers=headers, timeout=10)
-          response.encoding = response.apparent_encoding
-          soup = BeautifulSoup(response.text, "html.parser")
+          response = requests.get(u, headers=headers, timeout=5)
+          if response.status_code == 200:
+            response.encoding = response.apparent_encoding
+            soup = BeautifulSoup(response.text, "html.parser")
 
-          paragraphs = soup.find_all("p")
-          text_list = [
-              p.get_text().strip()
-              for p in paragraphs
-              if len(p.get_text().strip()) > 20
-          ]
+            paragraphs = soup.find_all("p")
+            text_list = [
+                p.get_text().strip()
+                for p in paragraphs
+                if len(p.get_text().strip()) > 30
+            ]
 
-          if text_list:
-            meaning = "\n\n".join(text_list[:3])
+            if text_list:
+              source_url = u
+              meaning = "\n\n".join(text_list[:3])
+              break
         except Exception:
-          meaning = "Տվյալները կարդալիս սխալ առաջացավ:"
+          continue
+
+      # Եթե ոչ մի կայքից չհաջողվեց ավտոմատ կարդալ տեքստը, բայց հղում գտնվել է
+      if not meaning and urls_to_try:
+        source_url = urls_to_try[0]
+        meaning = (
+            f"Ավտոմատ կերպով տեքստը հնարավոր չեղավ կարդալ (կայքի"
+            f" պաշտպանության պատճառով): Խնդրում ենք սեղմել ստորև բերված հղումը՝"
+            f" անմիջապես կայքում կարդալու համար:"
+        )
+      elif not meaning:
+        meaning = f"Ցավոք, «{name}» անվան վերաբերյալ տեղեկություն չգտնվեց:"
 
   return render_template(
       "index.html", meaning=meaning, name=name, source_url=source_url
