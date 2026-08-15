@@ -15,7 +15,8 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      query = f"{name} անվան նշանակությունը բացատրություն"
+      # Հարցումը դարձնում ենք ավելի ընդգրկուն, որպեսզի շատ տեղեկություն գտնի
+      query = f"{name} անվան նշանակությունը ծագումը բացատրություն"
       urls_to_try = []
 
       try:
@@ -57,7 +58,7 @@ def index():
             text_list = []
             for p in paragraphs:
               txt = p.get_text().strip()
-              # Ֆիլտրում ենք գովազդները, հեռախոսահամարները և անպիտան կարճ տողերը
+              # Ֆիլտրում ենք գովազդները և անպիտան կարճ տողերը
               if (
                   len(txt) > 30
                   and "1-888" not in txt
@@ -68,8 +69,9 @@ def index():
 
             if text_list:
               source_url = u
-              # Վերցնում ենք ճիշտ առաջին իմաստալից պարբերությունը
-              meaning = text_list[0]
+              # Վերցնում ենք միանգամից մի քանի պարբերություն (օրինակ՝ առաջին 3-ը),
+              # որպեսզի տեղեկությունը շատ ու հետաքրքիր լինի
+              meaning = "\n\n".join(text_list[:3])
               break
         except Exception:
           continue
