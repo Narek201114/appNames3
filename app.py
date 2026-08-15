@@ -15,7 +15,6 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      # Որոնում ենք կոնկրետ հայկական անունների բառարաններից տեղեկություն ստանալու համար
       query = f"{name} անվան նշանակությունը բացատրություն"
       urls_to_try = []
 
@@ -52,30 +51,27 @@ def index():
           response = requests.get(u, headers=headers, timeout=5)
           if response.status_code == 200:
             response.encoding = response.apparent_encoding
-            soup = BeautifulSoup(response.text, "html.parser*/")
+            # Ուղղված է html.parser սխալը
+            soup = BeautifulSoup(response.text, "html.parser")
 
             paragraphs = soup.find_all("p")
             text_list = []
             for p in paragraphs:
               txt = p.get_text().strip()
-              # Խիստ ֆիլտրում ենք մենյուի բառերը, գովազդները և կարճ տողերը
+              # Ավելի հավասարակշռված ֆիլտր
               if (
-                  len(txt) > 50
-                  and "Բիզնես" not in txt
-                  and "Գործարար" not in txt
+                  len(txt) > 20
                   and "1-888" not in txt
                   and "Chair" not in txt
                   and "Setup" not in txt
                   and "©" not in txt
                   and "All rights reserved" not in txt
-                  and "Indonesia" not in txt
-                  and "Cookie" not in txt
               ):
                 text_list.append(txt)
 
             if text_list:
               source_url = u
-              # Վերցնում ենք առաջին 2 իրական բովանդակային պարբերությունը
+              # Վերցնում ենք առաջին 2 լավագույն պարբերությունները
               meaning = "\n\n".join(text_list[:2])
               break
         except Exception:
