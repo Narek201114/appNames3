@@ -2,34 +2,157 @@
 <html lang="hy">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Անունների Նշանակություն</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; max-width: 600px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        input[type="text"] { width: 70%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 10px 20px; font-size: 16px; background-color: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .result { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 4px; white-space: pre-line; }
-        a { color: #007BFF; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-gradient: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #d1d5db;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 600px;
+            margin: 20px;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 24px;
+            color: var(--primary-color);
+            font-size: 28px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f9fafb;
+            border-left: 5px solid var(--primary-color);
+            border-radius: 8px;
+            text-align: left;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .result h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 20px;
+        }
+
+        .result p {
+            line-height: 1.6;
+            white-space: pre-line;
+            color: #4b5563;
+        }
+
+        .source-link {
+            display: inline-block;
+            margin-top: 15px;
+            font-size: 14px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .source-link:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 480px) {
+            .search-box {
+                flex-direction: column;
+            }
+            .container {
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h2>Իմանալ անվան նշանակությունը</h2>
-    <form method="POST">
-        <input type="text" name="name" placeholder="Մուտքագրեք անունը..." value="{{ name if name else '' }}" required>
-        <button type="submit">Որոնել</button>
-    </form>
+    <div class="container">
+        <h2>✨ Անունների Նշանակություն</h2>
+        <form method="POST">
+            <div class="search-box">
+                <input type="text" name="name" placeholder="Մուտքագրեք անունը (օր․՝ Անի)..." value="{{ name if name else '' }}" required>
+                <button type="submit">Որոնել</button>
+            </div>
+        </form>
 
-    {% if meaning %}
-        <div class="result">
-            <h3>«{{ name }}» անվան նշանակությունը.</h3>
-            <p>{{ meaning }}</p>
-            <p><small>Աղբյուր՝ <a href="{{ source_url }}" target="_blank">Բացել կայքը</a></small></p>
-        </div>
-    {% elif name %}
-        <div class="result">
-            <p>Ցավոք, տեղեկություն չգտնվեց:</p>
-        </div>
-    {% endif %}
+        {% if meaning %}
+            <div class="result">
+                <h3>«{{ name }}» անվան իմաստը</h3>
+                <p>{{ meaning }}</p>
+                {% if source_url %}
+                    <a class="source-link" href="{{ source_url }}" target="_blank">🔗 Աղբյուրը (այցելել կայք)</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
 </body>
 </html>
