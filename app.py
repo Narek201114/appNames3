@@ -15,15 +15,15 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      # Հարցումը ուղղորդում ենք հայկական անունների տիրույթ
+      # Որոնում ենք կոնկրետ հայկական անունների բառարաններից տեղեկություն ստանալու համար
       query = f"{name} անվան նշանակությունը բացատրություն"
       urls_to_try = []
 
       try:
         with DDGS() as ddgs:
-          results = list(ddgs.text(query, region="am-hy", max_results=10))
+          results = list(ddgs.text(query, region="am-hy", max_results=8))
           if not results:
-            results = list(ddgs.text(query, max_results=10))
+            results = list(ddgs.text(query, max_results=8))
 
           for r in results:
             link = r.get("href", "")
@@ -52,17 +52,17 @@ def index():
           response = requests.get(u, headers=headers, timeout=5)
           if response.status_code == 200:
             response.encoding = response.apparent_encoding
-            soup = BeautifulSoup(response.text, "html.parser")
+            soup = BeautifulSoup(response.text, "html.parser*/")
 
-            # Փնտրում ենք ոչ միայն <p>, այլև բոլոր հնարավոր տեքստային բլոկները (div, span, td)
-            elements = soup.find_all(["p", "div", "span", "td"])
+            paragraphs = soup.find_all("p")
             text_list = []
-
-            for el in elements:
-              txt = el.get_text().strip()
-              # Ֆիլտրում ենք որպեսզի լինի մաքուր հայերեն կամ երկար տեքստ և չպարունակի աղբ
+            for p in paragraphs:
+              txt = p.get_text().strip()
+              # Խիստ ֆիլտրում ենք մենյուի բառերը, գովազդները և կարճ տողերը
               if (
-                  len(txt) > 40
+                  len(txt) > 50
+                  and "Բիզնես" not in txt
+                  and "Գործարար" not in txt
                   and "1-888" not in txt
                   and "Chair" not in txt
                   and "Setup" not in txt
@@ -70,16 +70,13 @@ def index():
                   and "All rights reserved" not in txt
                   and "Indonesia" not in txt
                   and "Cookie" not in txt
-                  and "Menu" not in txt
               ):
-                # Համոզվում ենք, որ կրկնվող կամ ներդրված տեքստեր չվերցնենք
-                if txt not in text_list:
-                  text_list.append(txt)
+                text_list.append(txt)
 
             if text_list:
               source_url = u
-              # Վերցնում ենք մի քանի լավագույն տեքստային հատվածներ միասին, որ շատ տեղեկություն բերի
-              meaning = "\n\n".join(text_list[:3])
+              # Վերցնում ենք առաջին 2 իրական բովանդակային պարբերությունը
+              meaning = "\n\n".join(text_list[:2])
               break
         except Exception:
           continue
@@ -87,8 +84,8 @@ def index():
       if not meaning and urls_to_try:
         source_url = urls_to_try[0]
         meaning = (
-            "Ավտոմատ կերպով տեքստը հնարավոր չեղավ ամբողջությամբ կարդալ:"
-            " Խնդրում ենք սեղմել ստորև բերված հղումը՝ կայքում կարդալու համար:"
+            "Ավտոմատ կերպով տեքստը հնարավոր չեղավ կարդալ: Խնդրում ենք սեղմել"
+            " ստորև բերված հղումը:"
         )
       elif not meaning:
         meaning = f"Ցավոք, «{name}» անվան վերաբերյալ տեղեկություն չգտնվեց:"
