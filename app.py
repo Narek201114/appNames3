@@ -1,88 +1,49 @@
 from bs4 import BeautifulSoup
-from duckduckgo_search import DDGS
 from flask import Flask, render_template, request
 import requests
 
 app = Flask(__name__)
 
-
-def is_armenian(text):
-  armenian_letters = set("աբգդեզէըթժիլխծկհձղճմյնշոչպջռսվտրցւփքօֆև")
-  return any(char in armenian_letters for char in text.lower())
-
-
 @app.route("/", methods=["GET", "POST"])
 def index():
-  meaning = None
-  name = None
-  source_url = None
+    meaning = None
+    name = None
 
-  if request.method == "POST":
-    name = request.form.get("name", "").strip()
-    if name:
-      query = f"{name} անվան նշանակությունը ի՞նչ է նշանակում"
-      urls_to_try = []
-
-      try:
-        with DDGS() as ddgs:
-          results = list(ddgs.text(query, max_results=10))
-          for r in results:
-            link = r.get("href", "")
-            if (
-                link
-                and "wikipedia.org" not in link
-                and "facebook.com" not in link
-                and "youtube.com" not in link
-            ):
-              urls_to_try.append(link)
-      except Exception:
-        pass
-
-      headers = {
-          "User-Agent": (
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-              " (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          )
-      }
-
-      for u in urls_to_try:
-        try:
-          response = requests.get(u, headers=headers, timeout=6)
-          if response.status_code == 200:
-            response.encoding = response.apparent_encoding
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        if name:
+            # 1. Google որոնում
+            query = f"{name} անվան նշանակություն"
+            search_url = f"https://www.google.com/search?q={query}"
+            
+            headers = {"User-Agent": "Mozilla/5.0"}
+            response = requests.get(search_url, headers=headers)
             soup = BeautifulSoup(response.text, "html.parser")
+            
+            # 2. Գտնում ենք առաջին հղումը
+            first_link = None
+            for a in soup.find_all("a", href=True):
+                href = a["href"]
+                if href.startswith("/url?q="):
+                    first_link = href.split("/url?q=")[1].split("&")[0]
+                    break
+            
+            # 3. Մտնում ենք այդ հղումով և վերցնում պարբերությունները
+            if first_link:
+                try:
+                    res = requests.get(first_link, headers=headers, timeout=5)
+                    page_soup = BeautifulSoup(res.text, "html.parser")
+                    paragraphs = page_soup.find_all("p")
+                    
+                    # Վերցնում ենք առաջին մի քանի պարբերությունը
+                    texts = [p.get_text().strip() for p in paragraphs if len(p.get_text().strip()) > 30]
+                    meaning = "\n\n".join(texts[:3]) # Առաջին 3 պարբերությունը
+                except:
+                    meaning = "Ցավոք, հնարավոր չեղավ տվյալներ կարդալ կայքից:"
+            else:
+                meaning = "Ոչինչ չգտնվեց:"
 
-            paragraphs = soup.find_all("p")
-            text_list = []
-            for p in paragraphs:
-              txt = p.get_text().strip()
-              if (
-                  len(txt) > 50
-                  and is_armenian(txt)
-                  and "Բիզնես" not in txt
-                  and "Cookie" not in txt
-              ):
-                text_list.append(txt)
-
-            if text_list:
-              source_url = u
-              meaning = text_list[0]
-              break
-        except Exception:
-          continue
-
-      if not meaning and urls_to_try:
-        source_url = urls_to_try[0]
-        meaning = (
-            f"«{name}» անվան մանրամասները կարող եք կարդալ ստորև բերված հղումով:"
-        )
-      elif not meaning:
-        meaning = f"Ցավոք, «{name}» անվան վերաբերյալ տեղեկություն չգտնվեց:"
-
-  return render_template(
-      "index.html", meaning=meaning, name=name, source_url=source_url
-  )
-
+    return render_template("index.html", meaning=meaning, name=name)
 
 if __name__ == "__main__":
-  app.run(debug=True)
+    app.run(debug=True)
