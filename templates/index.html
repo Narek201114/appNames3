@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Անունների Նշանակություն</title>
-    <!-- Tailwind CSS – ժամանակակից դիզայնի համար -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            /* Հիանալի և հանգիստ գրադիենտ ֆոն */
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
@@ -19,43 +18,44 @@
         }
     </style>
 </head>
-<body class="flex items-center justify-center p-4">
+<body class="flex items-center justify-center p-3 sm:p-6">
 
-    <div class="glass-card shadow-2xl p-8 max-w-xl w-full mx-auto my-10 transition-all duration-300">
+    <!-- Բլոկը հեռախոսների վրա դառնում է լայն, իսկ համակարգչի վրա՝ չափավոր -->
+    <div class="glass-card shadow-2xl p-5 sm:p-8 w-full max-w-xl mx-auto my-6 transition-all duration-300">
         <!-- Վերնագիր -->
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-indigo-900 mb-2 flex items-center justify-center gap-2">
+        <div class="text-center mb-6 sm:mb-8">
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-indigo-900 mb-2 flex items-center justify-center gap-2">
                 ✨ Անունների Նշանակություն
             </h1>
-            <p class="text-gray-500 text-sm">Բացահայտեք ձեր կամ ձեր մտերիմների անվան խորհուրդը</p>
+            <p class="text-gray-500 text-xs sm:text-sm">Բացահայտեք ձեր կամ ձեր մտերիմների անվան խորհուրդը</p>
         </div>
 
-        <!-- Որոնման ձև (Form) -->
-        <form method="POST" class="flex gap-3 mb-8">
+        <!-- Որոնման ձև (Form) - Հեռախոսների վրա կոճակը և դաշտը լինում են կողք կողքի կամ տակը, flex-col sm:flex-row-ի միջոցով -->
+        <form method="POST" class="flex flex-col sm:flex-row gap-3 mb-6 sm:mb-8">
             <input type="text" name="name" value="{{ name if name else '' }}" placeholder="Մուտքագրեք անունը (օր.՝ Անի)..." required
-                class="flex-1 px-5 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 shadow-sm">
+                class="flex-1 px-4 sm:px-5 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 shadow-sm text-sm sm:text-base">
             <button type="submit" 
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition shadow-md hover:shadow-lg">
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition shadow-md hover:shadow-lg text-sm sm:text-base cursor-pointer">
                 Որոնել
             </button>
         </form>
 
         <!-- Արդյունքների հատված -->
         {% if meaning %}
-        <div class="mt-6 border-l-4 border-indigo-600 bg-indigo-50/50 p-6 rounded-r-2xl shadow-inner">
-            <h2 class="text-xl font-bold text-indigo-900 mb-3">
+        <div class="mt-4 sm:mt-6 border-l-4 border-indigo-600 bg-indigo-50/50 p-4 sm:p-6 rounded-r-2xl shadow-inner">
+            <h2 class="text-lg sm:text-xl font-bold text-indigo-900 mb-3">
                 «{{ name }}» անվան իմաստը
             </h2>
-            <div class="text-gray-700 leading-relaxed whitespace-pre-line text-base">
+            <div class="text-gray-700 leading-relaxed whitespace-pre-line text-sm sm:text-base">
                 {{ meaning }}
             </div>
 
             {% if source_url %}
             <div class="mt-4 pt-3 border-t border-indigo-100 flex items-center gap-2">
-                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
                 </svg>
-                <a href="{{ source_url }}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 underline font-medium">
+                <a href="{{ source_url }}" target="_blank" class="text-xs sm:text-sm text-indigo-600 hover:text-indigo-800 underline font-medium break-all">
                     Աղբյուրը (այցելել կայք)
                 </a>
             </div>
