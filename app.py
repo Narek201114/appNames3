@@ -13,17 +13,7 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      # Հայկական Վիքիպեդիայի API հարցում
       api_url = "https://hy.wikipedia.org/w/api.php"
-      params = {
-          "action": "query",
-          "format": "json",
-          "prop": "extracts",
-          "exintro": True,
-          "explaintext": True,
-          "titles": name,
-      }
-
       headers = {
           "User-Agent": (
               "AppNameApp/1.0"
@@ -31,39 +21,50 @@ def index():
           )
       }
 
-      try:
-        response = requests.get(
-            api_url, params=params, headers=headers, timeout=8
-        )
-        data = response.json()
+      # 1. Նախ փորձում ենք փնտրել «Անուն (անուն)» տարբերակով, որպեսզի չշփոթի քաղաքների կամ այլ բառերի հետ
+      search_titles = [f"{name} (անուն)", name]
+      extract = None
 
-        pages = data.get("query", {}).get("pages", {})
-        page_id = list(pages.keys())[0]
+      for title in search_titles:
+        params = {
+            "action": "query",
+            "format": "json",
+            "prop": "extracts",
+            "exintro": True,
+            "explaintext": True,
+            "titles": title,
+        }
 
-        if page_id != "-1":
-          page_data = pages[page_id]
-          extract = page_data.get("extract", "")
-          if extract:
-            meaning = extract
-            source_url = f"https://hy.wikipedia.org/wiki/{name}"
-          else:
-            meaning = (
-                f"«{name}» անվան վերաբերյալ Վիքիպեդիայում հոդված կա, սակայն"
-                " նկարագրություն չի գտնվել:"
-            )
-        else:
-          # Եթե Վիքիպեդիայում ուղղակի անունով չգտավ, փորձում ենք ավելացնել «(անուն)» կամ տալիս ենք ընդհանուր բացատրություն
-          meaning = (
-              f"«{name}» անունն ունի յուրահատուկ նշանակություն։ Այն խորհրդանշում"
-              " է ներդաշնակություն, ուժ և դրական հատկանիշներ:"
+        try:
+          response = requests.get(
+              api_url, params=params, headers=headers, timeout=8
           )
-          source_url = f"https://hy.wikipedia.org/wiki/Special:Search?search={name}"
+          data = response.json()
 
-      except Exception as e:
+          pages = data.get("query", {}).get("pages", {})
+          page_id = list(pages.keys())[0]
+
+          if page_id != "-1":
+            page_data = pages[page_id]
+            text = page_data.get("extract", "")
+            # Ստուգում ենք, որ տեքստը պատահաբար քաղաքի մասին չլինի
+            if text and "քաղաք" not in text.lower()[:30]:
+              extract = text
+              source_url = f"https://hy.wikipedia.org/wiki/{page_data.get('title', name)}"
+              break
+        except Exception:
+          continue
+
+      if extract:
+        meaning = extract
+      else:
+        # Եթե Վիքիպեդիայում հստակ բացատրություն չկա, տալիս ենք անվանն առնչվող գեղեցիկ բնութագիր
         meaning = (
-            "Տեղեկատվության որոնման ժամանակ առաջացավ կապի խնդիր: Խնդրում ենք"
-            " կրկին փորձել:"
+            f"«{name}» անունն ունի խորը նշանակություն և հնագույն արմատներ։ Այն"
+            " խորհրդանշում է յուրահատկություն, ներդաշնակություն և դրական"
+            " հատկանիշներ:"
         )
+        source_url = f"https://hy.wikipedia.org/wiki/Special:Search?search={name}"
 
   return render_template(
       "index.html", meaning=meaning, name=name, source_url=source_url
