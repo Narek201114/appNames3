@@ -1,5 +1,4 @@
-flask
+Flask
 requests
 beautifulsoup4
-ddgs
-gunicorn
+duckduckgo_search
