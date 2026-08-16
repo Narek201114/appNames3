@@ -6,7 +6,6 @@ import requests
 app = Flask(__name__)
 
 
-# Ֆունկցիա, որը ստուգում է, թե արդյոք տեքստում կան հայերեն տառեր
 def is_armenian(text):
   armenian_letters = set("աբգդեզէըթժիլխծկհձղճմյնշոչպջռսվտրցւփքօֆև")
   return any(char in armenian_letters for char in text.lower())
@@ -21,8 +20,7 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      # Հարցումը ուղղորդում ենք հայկական տիրույթ
-      query = f"{name} անվան նշանակությունը բացատրություն"
+      query = f"{name} անվան նշանակությունը ի՞նչ է նշանակում"
       urls_to_try = []
 
       try:
@@ -37,6 +35,7 @@ def index():
                 link
                 and "wikipedia.org" not in link
                 and "facebook.com" not in link
+                and "youtube.com" not in link
             ):
               urls_to_try.append(link)
       except Exception:
@@ -45,17 +44,14 @@ def index():
       headers = {
           "User-Agent": (
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-              " (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-          ),
-          "Accept": (
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+              " (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
           ),
           "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
       }
 
       for u in urls_to_try:
         try:
-          response = requests.get(u, headers=headers, timeout=5)
+          response = requests.get(u, headers=headers, timeout=6)
           if response.status_code == 200:
             response.encoding = response.apparent_encoding
             soup = BeautifulSoup(response.text, "html.parser")
@@ -64,21 +60,19 @@ def index():
             text_list = []
             for p in paragraphs:
               txt = p.get_text().strip()
-              # Ֆիլտրում ենք ըստ երկարության, գովազդների և ՍՏՈՒԳՈՒՄ ԵՆՔ, ՈՐ ԼԻՆԻ ՀԱՅԵՐԵՆ
               if (
-                  len(txt) > 30
+                  len(txt) > 60
                   and is_armenian(txt)
-                  and "1-888" not in txt
-                  and "Chair" not in txt
-                  and "Setup" not in txt
-                  and "©" not in txt
-                  and "All rights reserved" not in txt
+                  and "Բիզնես" not in txt
+                  and "Գործարար" not in txt
+                  and "Cookie" not in txt
+                  and "Կայքի" not in txt
               ):
                 text_list.append(txt)
 
             if text_list:
               source_url = u
-              meaning = "\n\n".join(text_list[:2])
+              meaning = text_list[0]
               break
         except Exception:
           continue
@@ -99,4 +93,3 @@ def index():
 
 if __name__ == "__main__":
   app.run(debug=True)
-  
