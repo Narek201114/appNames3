@@ -20,15 +20,13 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      query = f"{name} անվան նշանակությունը ի՞նչ է նշանակում"
+      query = f"{name} անվան նշանակությունը"
       urls_to_try = []
 
       try:
+        # Օգտագործում ենք առանց տարածաշրջանային սահմանափակման ավելի պարզ հարցում
         with DDGS() as ddgs:
-          results = list(ddgs.text(query, region="am-hy", max_results=10))
-          if not results:
-            results = list(ddgs.text(query, max_results=10))
-
+          results = ddgs.text(query, max_results=8)
           for r in results:
             link = r.get("href", "")
             if (
@@ -45,43 +43,33 @@ def index():
           "User-Agent": (
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
               " (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          ),
-          "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
+          )
       }
 
       for u in urls_to_try:
         try:
-          response = requests.get(u, headers=headers, timeout=6)
+          response = requests.get(u, headers=headers, timeout=5)
           if response.status_code == 200:
             response.encoding = response.apparent_encoding
             soup = BeautifulSoup(response.text, "html.parser")
 
             paragraphs = soup.find_all("p")
-            text_list = []
             for p in paragraphs:
               txt = p.get_text().strip()
-              if (
-                  len(txt) > 60
-                  and is_armenian(txt)
-                  and "Բիզնես" not in txt
-                  and "Գործարար" not in txt
-                  and "Cookie" not in txt
-                  and "Կայքի" not in txt
-              ):
-                text_list.append(txt)
-
-            if text_list:
-              source_url = u
-              meaning = text_list[0]
+              if len(txt) > 50 and is_armenian(txt):
+                source_url = u
+                meaning = txt
+                break
+            if meaning:
               break
         except Exception:
           continue
 
+      # Եթե պարբերություններից չգտնվեց, բայց հղում կա, գոնե տալիս ենք հղումը
       if not meaning and urls_to_try:
         source_url = urls_to_try[0]
         meaning = (
-            "Ավտոմատ կերպով տեքստը հնարավոր չեղավ կարդալ: Խնդրում ենք սեղմել"
-            " ստորև բերված հղումը:"
+            f"«{name}» անվան մանրամասները կարող եք կարդալ ստորև նշված աղբյուրում:"
         )
       elif not meaning:
         meaning = f"Ցավոք, «{name}» անվան վերաբերյալ տեղեկություն չգտնվեց:"
