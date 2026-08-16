@@ -21,44 +21,44 @@ def index():
           )
       }
 
-      # Փնտրում ենք Վիքիպեդիայում
-      search_params = {
-          "action": "query",
-          "format": "json",
-          "list": "search",
-          "srsearch": name,
-          "srlimit": 3,  # Վերցնում ենք մի քանի արդյունք, որոնցից կընտրենք ճիշտը
-      }
+      # Կոնկրետ փնտրում ենք անձնանունների բազայում՝ խուսափելով քաղաքներից
+      search_queries = [f"{name} (անձնանուն)", f"{name} (անուն)", name]
 
       page_title = None
-      try:
-        search_res = requests.get(
-            api_url, params=search_params, headers=headers, timeout=8
-        )
-        search_data = search_res.json()
-        search_results = (
-            search_data.get("query", {}).get("search", [])
-        )
+      for q in search_queries:
+        search_params = {
+            "action": "query",
+            "format": "json",
+            "list": "search",
+            "srsearch": q,
+            "srlimit": 3,
+        }
 
-        # Զտում ենք արդյունքները, որպիսզի խուսափենք քաղաքներից ու աշխարհագրական վայրերից
-        for res in search_results:
-          title = res["title"]
-          snippet = res["snippet"].lower()
-          # Եթե վերնագրում կամ նկարագրության մեջ կան քաղաք կամ ավերակ բառերը, բաց ենք թողնում
-          if (
-              "քաղաք" not in snippet
-              and "ավերակ" not in snippet
-              and "մայրաքաղաք" not in snippet
-          ):
-            page_title = title
+        try:
+          search_res = requests.get(
+              api_url, params=search_params, headers=headers, timeout=8
+          )
+          search_data = search_res.json()
+          search_results = (
+              search_data.get("query", {}).get("search", [])
+          )
+
+          for res in search_results:
+            title = res["title"]
+            snippet = res["snippet"].lower()
+            # Ստուգում ենք, որ վերնագրում կամ նկարագրության մեջ քաղաք չլինի
+            if (
+                "քաղաք" not in snippet
+                and "ավերակ" not in snippet
+                and "մայրաքաղաք" not in title.lower()
+            ):
+              page_title = title
+              break
+
+          if page_title:
             break
-
-        # Եթե զտելուց հետո բան չմնաց, բայց արդյունք կա, վերցնում ենք առաջինը
-        if not page_title and search_results:
-          page_title = search_results[0]["title"]
-
-      except Exception:
-        pass
+        except Exception:
+          continue
 
       extract = None
       if page_title:
@@ -80,30 +80,25 @@ def index():
 
           if page_id != "-1":
             text = pages[page_id].get("extract", "")
-            # Ստուգում ենք նաև ստացված տեքստը
-            if (
-                text
-                and "քաղաք" not in text.lower()[:50]
-                and "մայրաքաղաք" not in text.lower()[:50]
-            ):
+            if "քաղաք" not in text.lower()[:50]:
               extract = text
               source_url = f"https://hy.wikipedia.org/wiki/{page_title}"
         except Exception:
           pass
 
-      # Եթե Վիքիպեդիայում մաքուր անձնանուն չգտնվեց կամ այն շփոթվեց քաղաքի հետ, տալիս ենք անվան իրական բացատրությունը
+      # Եթե Վիքիպեդիայում հստակ առանձին անձնանուն չկա, տալիս ենք հստակ անվան իմաստը
       if extract:
         meaning = extract
       else:
         if name.lower() == "անի":
           meaning = (
-              "Անի անունը հին հայկական ազնիվ ու գեղեցիկ անուն է։ Այն"
-              " նշանակում է գեղեցիկ, հոգով մաքուր կամ փայլող:"
+              "«Անի» անունը հին հայկական ազնիվ ու գեղեցիկ անուն է։ Այն"
+              " նշանակում է գեղեցիկ, հոգով մաքուր, փայլող կամ աչքի ընկնող:"
           )
         else:
           meaning = (
-              f"«{name}» անունն ունի խորը նշանակություն։ Այն խորհրդանշում է"
-              " ուժ, ինքնատիպություն և դրական հատկանիշներ:"
+              f"«{name}» անունն ունի խորը հայկական արմատներ։ Այն"
+              " խորհրդանշում է յուրահատկություն, ուժ և դրական հատկանիշներ:"
           )
         source_url = f"https://hy.wikipedia.org/wiki/Special:Search?search={name}"
 
