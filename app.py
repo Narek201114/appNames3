@@ -1,63 +1,82 @@
+from bs4 import BeautifulSoup
+from duckduckgo_search import DDGS
 from flask import Flask, render_template, request
+import requests
 
 app = Flask(__name__)
-
-# Հայտնի անունների հուսալի բազա
-NAMES_DATABASE = {
-    "անի": (
-        "Անի անունը հին հայկական ազնիվ ու գեղեցիկ անուն է։ Այն նշանակում է"
-        " գեղեցիկ, հոգով մաքուր կամ կապված է մեր պատմական մայրաքաղաք Անիի հետ:"
-    ),
-    "նարեկ": (
-        "Նարեկ անունը հայկական ծագում ունի, կապված է հայկական պատմական"
-        " վանքերի և «Նարեկ» մատյանի հետ, նշանակում է աստվածային լույս:"
-    ),
-    "գարիկ": (
-        "Գարիկ անունը հայկական և ռուսական ծագում ունի, նշանակում է ազնվական,"
-        " հզոր կամ կապված է Գարեգին անվան հետ:"
-    ),
-    "արմեն": (
-        "Արմեն անունը հայկական ծագում ունի, նշանակում է հայ մարդ, հայորդի:"
-    ),
-    "դավիթ": (
-        "Դավիթ անունը եբրայական ծագում ունի, նշանակում է սիրելի, ընտրյալ:"
-    ),
-    "մերի": (
-        "Մերի անունը ծագում է Մարիամ անունից, նշանակում է սիրելի, լուսավոր:"
-    ),
-    "գայանե": (
-        "Գայանե անունը լատինական ծագում ունի, նշանակում է երկրային:"
-    ),
-    "արթուր": (
-        "Արթուր անունը կելտական ծագում ունի, նշանակում է արջ, հզոր մարտիկ:"
-    ),
-    "վահագն": (
-        "Վահագն անունը հայկական դիցաբանական ծագում ունի, նշանակում է"
-        " աստվածային կրակ, հաղթանակած մարտիկ:"
-    ),
-}
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
   meaning = None
   name = None
+  source_url = None
 
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      clean_name = name.lower()
-      # Ստուգում ենք բազայում
-      if clean_name in NAMES_DATABASE:
-        meaning = NAMES_DATABASE[clean_name]
-      else:
-        # Եթե անունը բազայում չկա, տալիս ենք ընդհանուր գեղեցիկ ձևակերպում
-        meaning = (
-            f"«{name}» անունն ունի խորը հոգևոր նշանակություն։ Այն բնութագրում"
-            " է յուրահատուկ, նպատակասլաց և բարի անհատի:"
-        )
+      query = f"{name} անվան նշանակությունը բացատրություն"
 
-  return render_template("index.html", meaning=meaning, name=name)
+      headers = {
+          "User-Agent": (
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+              " (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+          ),
+          "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
+      }
+
+      url = None
+      try:
+        # Որոնում ենք DuckDuckGo-ի միջոցով
+        with DDGS() as ddgs:
+          results = list(ddgs.text(query, region="am-hy", max_results=5))
+          if not results:
+            results = list(ddgs.text(query, max_results=5))
+
+          if results:
+            # Խուսափում ենք wikipedia.org-ից, եթե հնարավոր է
+            for r in results:
+              link = r.get("href", "")
+              if "wikipedia.org" not in link:
+                url = link
+                break
+
+            # Եթե բոլորը Վիքիպեդիա էին, վերցնում ենք առաջինը
+            if not url and results:
+              url = results[0].get("href", "")
+      except Exception as e:
+        print(f"Որոնման սխալ՝ {e}")
+
+      # Եթե հղումը գտնվել է, փորձում ենք կարդալ տեքստը
+      if url:
+        source_url = url
+        try:
+          response = requests.get(url, headers=headers, timeout=8)
+          response.encoding = response.apparent_encoding
+          soup = BeautifulSoup(response.text, "html.parser")
+
+          paragraphs = soup.find_all("p")
+          text_list = [
+              p.get_text().strip()
+              for p in paragraphs
+              if len(p.get_text().strip()) > 30
+          ]
+
+          if text_list:
+            meaning = "\n\n".join(text_list[:3])
+          else:
+            meaning = (
+                f"«{name}» անվան մասին տեղեկություն գտնվեց, սակայն էջից"
+                " հնարավոր չեղավ տեքստ առանձնացնել:"
+            )
+        except Exception as e:
+          meaning = f"Տեղեկությունը կարդալու ընթացքում սխալ առաջացավ։"
+      else:
+        meaning = f"Ցավոք, «{name}» անվան վերաբերյալ որեւէ բան չգտնվեց:"
+
+  return render_template(
+      "index.html", meaning=meaning, name=name, source_url=source_url
+  )
 
 
 if __name__ == "__main__":
