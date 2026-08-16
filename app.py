@@ -6,6 +6,7 @@ import requests
 app = Flask(__name__)
 
 
+# Ֆունկցիա, որը ստուգում է, թե արդյոք տեքստում կան հայերեն տառեր
 def is_armenian(text):
   armenian_letters = set("աբգդեզէըթժիլխծկհձղճմյնշոչպջռսվտրցւփքօֆև")
   return any(char in armenian_letters for char in text.lower())
@@ -20,8 +21,8 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      # Հարցումը ուղղում ենք հայկական անունների բառարաններին
-      query = f"{name} անվան նշանակությունը ի՞նչ է նշանակում"
+      # Հարցումը ուղղորդում ենք հայկական տիրույթ
+      query = f"{name} անվան նշանակությունը բացատրություն"
       urls_to_try = []
 
       try:
@@ -36,7 +37,6 @@ def index():
                 link
                 and "wikipedia.org" not in link
                 and "facebook.com" not in link
-                and "youtube.com" not in link
             ):
               urls_to_try.append(link)
       except Exception:
@@ -45,38 +45,40 @@ def index():
       headers = {
           "User-Agent": (
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-              " (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+              " (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+          ),
+          "Accept": (
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
           ),
           "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
       }
 
       for u in urls_to_try:
         try:
-          response = requests.get(u, headers=headers, timeout=6)
+          response = requests.get(u, headers=headers, timeout=5)
           if response.status_code == 200:
             response.encoding = response.apparent_encoding
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # Վերցնում ենք միայն պարբերությունները (<p>)
             paragraphs = soup.find_all("p")
             text_list = []
             for p in paragraphs:
               txt = p.get_text().strip()
-              # Ֆիլտրում ենք մենյուի կարճ բառերը և պահանջում ենք, որ տեքստը լինի հայերեն ու բավականաչափ երկար
+              # Ֆիլտրում ենք ըստ երկարության, գովազդների և ՍՏՈՒԳՈՒՄ ԵՆՔ, ՈՐ ԼԻՆԻ ՀԱՅԵՐԵՆ
               if (
-                  len(txt) > 60
+                  len(txt) > 30
                   and is_armenian(txt)
-                  and "Բիզնես" not in txt
-                  and "Գործարար" not in txt
-                  and "Cookie" not in txt
-                  and "Կայքի" not in txt
+                  and "1-888" not in txt
+                  and "Chair" not in txt
+                  and "Setup" not in txt
+                  and "©" not in txt
+                  and "All rights reserved" not in txt
               ):
                 text_list.append(txt)
 
             if text_list:
               source_url = u
-              # Վերցնում ենք առաջին իրական բովանդակային պարբերությունը
-              meaning = text_list[0]
+              meaning = "\n\n".join(text_list[:2])
               break
         except Exception:
           continue
