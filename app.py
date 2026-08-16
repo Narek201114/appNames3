@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-from duckduckgo_search import DDGS
 from flask import Flask, render_template, request
 import requests
 
@@ -15,64 +14,67 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      query = f"{name} անվան նշանակությունը բացատրություն"
+      # Օգտագործում ենք DuckDuckGo-ի ուղղակի HTML որոնումը, որը երբեք չի արգելափակվում
+      query = f"{name} անվան նշանակություն"
+      search_url = f"https://html.duckduckgo.com/html/?q={query}"
 
       headers = {
           "User-Agent": (
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-              " (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-          ),
-          "Accept-Language": "hy,en-US;q=0.9,en;q=0.8",
+              " (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          )
       }
 
-      url = None
       try:
-        # Որոնում ենք DuckDuckGo-ի միջոցով
-        with DDGS() as ddgs:
-          results = list(ddgs.text(query, region="am-hy", max_results=5))
-          if not results:
-            results = list(ddgs.text(query, max_results=5))
+        response = requests.get(search_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-          if results:
-            # Խուսափում ենք wikipedia.org-ից, եթե հնարավոր է
-            for r in results:
-              link = r.get("href", "")
-              if "wikipedia.org" not in link:
-                url = link
+        # Գտնում ենք որոնման առաջին արդյունքի հղումը
+        first_link = None
+        for a in soup.find_all("a", class_="result__url", href=True):
+          first_link = a["href"]
+          break
+
+        if not first_link:
+          # Այլընտրանքային որոնում հղումների համար
+          for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if "uddg=" in href:
+              from urllib.parse import parse_qs, urlparse
+
+              parsed_url = urlparse(href)
+              captured_url = parse_qs(parsed_url.query).get("uddg")
+              if captured_url:
+                first_link = captured_url[0]
                 break
 
-            # Եթե բոլորը Վիքիպեդիա էին, վերցնում ենք առաջինը
-            if not url and results:
-              url = results[0].get("href", "")
-      except Exception as e:
-        print(f"Որոնման սխալ՝ {e}")
+        # Եթե գտանք հղում, մտնում ենք կարդալու
+        if first_link:
+          source_url = first_link
+          res = requests.get(first_link, headers=headers, timeout=8)
+          page_soup = BeautifulSoup(res.text, "html.parser")
+          paragraphs = page_soup.find_all("p")
 
-      # Եթե հղումը գտնվել է, փորձում ենք կարդալ տեքստը
-      if url:
-        source_url = url
-        try:
-          response = requests.get(url, headers=headers, timeout=8)
-          response.encoding = response.apparent_encoding
-          soup = BeautifulSoup(response.text, "html.parser")
-
-          paragraphs = soup.find_all("p")
-          text_list = [
+          texts = [
               p.get_text().strip()
               for p in paragraphs
               if len(p.get_text().strip()) > 30
           ]
 
-          if text_list:
-            meaning = "\n\n".join(text_list[:3])
+          if texts:
+            meaning = "\n\n".join(texts[:3])
           else:
             meaning = (
-                f"«{name}» անվան մասին տեղեկություն գտնվեց, սակայն էջից"
-                " հնարավոր չեղավ տեքստ առանձնացնել:"
+                f"«{name}» անվան մասին գտնվել է համապատասխան էջ, սակայն"
+                " տեքստը հնարավոր չեղավ ավտոմատ կարդալ:"
             )
-        except Exception as e:
-          meaning = f"Տեղեկությունը կարդալու ընթացքում սխալ առաջացավ։"
-      else:
-        meaning = f"Ցավոք, «{name}» անվան վերաբերյալ որեւէ բան չգտնվեց:"
+        else:
+          meaning = f"Ցավոք, «{name}» անվան վերաբերյալ որևէ բան չգտնվեց:"
+
+      except Exception as e:
+        meaning = (
+            "Որոնման կամ տվյալների բեռնման ընթացքում տեղի ունեցավ սխալ:"
+        )
 
   return render_template(
       "index.html", meaning=meaning, name=name, source_url=source_url
@@ -80,4 +82,4 @@ def index():
 
 
 if __name__ == "__main__":
-  app.run(debug=True)
+  app.run(host="0.0.0.0", port=10000)
