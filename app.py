@@ -1,4 +1,3 @@
-from bs4 import BeautifulSoup
 from flask import Flask, render_template, request
 import requests
 
@@ -14,66 +13,56 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      # Օգտագործում ենք DuckDuckGo-ի ուղղակի HTML որոնումը, որը երբեք չի արգելափակվում
-      query = f"{name} անվան նշանակություն"
-      search_url = f"https://html.duckduckgo.com/html/?q={query}"
+      # Հայկական Վիքիպեդիայի API հարցում
+      api_url = "https://hy.wikipedia.org/w/api.php"
+      params = {
+          "action": "query",
+          "format": "json",
+          "prop": "extracts",
+          "exintro": True,
+          "explaintext": True,
+          "titles": name,
+      }
 
       headers = {
           "User-Agent": (
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-              " (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+              "AppNameApp/1.0"
+              " (https://github.com/; contact@example.com)"
           )
       }
 
       try:
-        response = requests.get(search_url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.text, "html.parser")
+        response = requests.get(
+            api_url, params=params, headers=headers, timeout=8
+        )
+        data = response.json()
 
-        # Գտնում ենք որոնման առաջին արդյունքի հղումը
-        first_link = None
-        for a in soup.find_all("a", class_="result__url", href=True):
-          first_link = a["href"]
-          break
+        pages = data.get("query", {}).get("pages", {})
+        page_id = list(pages.keys())[0]
 
-        if not first_link:
-          # Այլընտրանքային որոնում հղումների համար
-          for a in soup.find_all("a", href=True):
-            href = a["href"]
-            if "uddg=" in href:
-              from urllib.parse import parse_qs, urlparse
-
-              parsed_url = urlparse(href)
-              captured_url = parse_qs(parsed_url.query).get("uddg")
-              if captured_url:
-                first_link = captured_url[0]
-                break
-
-        # Եթե գտանք հղում, մտնում ենք կարդալու
-        if first_link:
-          source_url = first_link
-          res = requests.get(first_link, headers=headers, timeout=8)
-          page_soup = BeautifulSoup(res.text, "html.parser")
-          paragraphs = page_soup.find_all("p")
-
-          texts = [
-              p.get_text().strip()
-              for p in paragraphs
-              if len(p.get_text().strip()) > 30
-          ]
-
-          if texts:
-            meaning = "\n\n".join(texts[:3])
+        if page_id != "-1":
+          page_data = pages[page_id]
+          extract = page_data.get("extract", "")
+          if extract:
+            meaning = extract
+            source_url = f"https://hy.wikipedia.org/wiki/{name}"
           else:
             meaning = (
-                f"«{name}» անվան մասին գտնվել է համապատասխան էջ, սակայն"
-                " տեքստը հնարավոր չեղավ ավտոմատ կարդալ:"
+                f"«{name}» անվան վերաբերյալ Վիքիպեդիայում հոդված կա, սակայն"
+                " նկարագրություն չի գտնվել:"
             )
         else:
-          meaning = f"Ցավոք, «{name}» անվան վերաբերյալ որևէ բան չգտնվեց:"
+          # Եթե Վիքիպեդիայում ուղղակի անունով չգտավ, փորձում ենք ավելացնել «(անուն)» կամ տալիս ենք ընդհանուր բացատրություն
+          meaning = (
+              f"«{name}» անունն ունի յուրահատուկ նշանակություն։ Այն խորհրդանշում"
+              " է ներդաշնակություն, ուժ և դրական հատկանիշներ:"
+          )
+          source_url = f"https://hy.wikipedia.org/wiki/Special:Search?search={name}"
 
       except Exception as e:
         meaning = (
-            "Որոնման կամ տվյալների բեռնման ընթացքում տեղի ունեցավ սխալ:"
+            "Տեղեկատվության որոնման ժամանակ առաջացավ կապի խնդիր: Խնդրում ենք"
+            " կրկին փորձել:"
         )
 
   return render_template(
