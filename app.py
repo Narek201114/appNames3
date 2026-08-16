@@ -20,15 +20,15 @@ def index():
   if request.method == "POST":
     name = request.form.get("name", "").strip()
     if name:
-      # Փոխում ենք որոնման հարցումը, որպեսզի ավելի հեշտ կարդացվող կայքեր գտնի
-      query = f"{name} անվան նշանակություն ծագում"
+      # Հարցումը ուղղում ենք հայկական անունների բառարաններին
+      query = f"{name} անվան նշանակությունը ի՞նչ է նշանակում"
       urls_to_try = []
 
       try:
         with DDGS() as ddgs:
-          results = list(ddgs.text(query, region="am-hy", max_results=12))
+          results = list(ddgs.text(query, region="am-hy", max_results=10))
           if not results:
-            results = list(ddgs.text(query, max_results=12))
+            results = list(ddgs.text(query, max_results=10))
 
           for r in results:
             link = r.get("href", "")
@@ -57,24 +57,25 @@ def index():
             response.encoding = response.apparent_encoding
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # Հավաքում ենք ոչ միայն p, այլև div պիտակների մեջ գտնվող տեքստերը
-            elements = soup.find_all(["p", "div"])
+            # Վերցնում ենք միայն պարբերությունները (<p>)
+            paragraphs = soup.find_all("p")
             text_list = []
-            for el in elements:
-              # Ստուգում ենք, որ տարրը երեխա տարրեր չունենա կամ լինի պարզ տեքստ
-              txt = el.get_text().strip()
+            for p in paragraphs:
+              txt = p.get_text().strip()
+              # Ֆիլտրում ենք մենյուի կարճ բառերը և պահանջում ենք, որ տեքստը լինի հայերեն ու բավականաչափ երկար
               if (
-                  len(txt) > 40
+                  len(txt) > 60
                   and is_armenian(txt)
+                  and "Բիզնես" not in txt
+                  and "Գործարար" not in txt
                   and "Cookie" not in txt
-                  and "Կայքը" not in txt
-                  and txt not in text_list
+                  and "Կայքի" not in txt
               ):
                 text_list.append(txt)
 
             if text_list:
               source_url = u
-              # Վերցնում ենք գտնված ամենաառաջին իմաստային տեքստը
+              # Վերցնում ենք առաջին իրական բովանդակային պարբերությունը
               meaning = text_list[0]
               break
         except Exception:
@@ -96,3 +97,4 @@ def index():
 
 if __name__ == "__main__":
   app.run(debug=True)
+  
